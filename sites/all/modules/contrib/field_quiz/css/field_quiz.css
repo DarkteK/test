@@ -1,0 +1,9 @@
+.field-quiz-answer-wrong{
+    font-weight: bold;
+    color: red;
+}
+
+.field-quiz-answer-correct{
+    font-weight: bold;
+    color: green;
+}

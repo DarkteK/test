@@ -1,0 +1,16 @@
+name = Field Quiz
+description = Provides a field to create a quiz question with multiple choice questions
+core = 7.x
+package = Fields
+dependencies[] = drupal:system (>= 7.37)
+configure = admin/config/system/field-quiz
+files[] = field_quiz.module
+files[] = field_quiz.install
+files[] = field_quiz.theme.inc
+files[] = field_quiz.admin.inc
+; Information added by Drupal.org packaging script on 2017-02-26
+version = "7.x-1.7"
+core = "7.x"
+project = "field_quiz"
+datestamp = "1488109085"
+

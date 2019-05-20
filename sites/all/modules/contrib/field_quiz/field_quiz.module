@@ -1,0 +1,647 @@
+<?php
+/**
+ * @file
+ * An field for creating a single multiple choice question with answers in an entity.
+ */
+
+
+/**
+ * Implements hook_field_info().
+ *
+ * Provides the description of the field.
+ */
+function field_quiz_field_info() {
+
+  return array(
+    // We name our field as the associative name of the array.
+    'field_quiz' => array(
+      'label' => t('Quiz field'),
+      'description' => t('Field to integrate a multiple choice question in a single entity.'),
+      'default_widget' => 'field_quiz_widget_quiz',
+      'default_formatter' => 'field_quiz_formatter_quiz',
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ *
+ */
+function field_quiz_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+
+}
+
+
+/**
+ * Implements hook_field_is_empty().
+ *
+ * hook_field_is_empty() is where Drupal asks us if this field is empty.
+ * Return TRUE if it does not contain data, FALSE if it does. This lets
+ * the form API flag an error when required fields are empty.
+ */
+function field_quiz_field_is_empty($item, $field) {
+  return empty($item['answer']);
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ *
+ */
+function field_quiz_field_formatter_info() {
+  return array(
+    // This formatter just displays the link field
+    'field_quiz_formatter_quiz' => array(
+      'label' => t('Quiz formatter'),
+      'field types' => array('field_quiz'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ *
+ */
+function field_quiz_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  switch ($display['type']) {
+    case 'field_quiz_formatter_quiz':
+
+      // Build the answers form
+      $form = drupal_get_form('field_quiz_answer_form', $entity, $items, $instance);
+      $element[] = array(
+        '#markup' => drupal_render($form),
+      );
+      break;
+
+  }
+
+  return $element;
+}
+
+
+
+/**
+ * Implements hook_theme().
+ */
+function field_quiz_theme() {
+  return array(
+    'field_quiz_page_wrong_answer' => array(
+      'variables' => array(
+        'entity_type' => '',
+        'entity_id' => '',
+        'ajax' => FALSE,
+        'text' => '',
+        'back_link_text' => '',
+      ),
+      'file' => 'field_quiz.theme.inc',
+    ),
+    'field_quiz_page_correct_answer' => array(
+      'variables' => array(
+        'entity_type' => '',
+        'entity_id' => '',
+        'ajax' => FALSE,
+        'text' => '',
+        'back_link_text' => '',
+      ),
+      'file' => 'field_quiz.theme.inc',
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_permission().
+ *
+ * @return array
+ */
+function field_quiz_permission() {
+  return array(
+    'administer field quiz' => array(
+      'title' => t('Administer field quiz'),
+      'description' => t('Perform administration tasks for the field quiz module.'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_menu().
+ * @return array $items
+ */
+function field_quiz_menu() {
+  $items['quiz/sorry'] = array(
+    'title' => 'Sorry, wrong answer',
+    //'page arguments' => array(2),
+    'page callback' => 'field_quiz_page_wrong_answer',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['quiz/success'] = array(
+    'title' => 'Success, correct answer',
+    'page callback' => 'field_quiz_page_correct_answer',
+    //'page arguments' => array(2),
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['admin/config/system/field-quiz'] = array(
+    'title' => 'Field Quiz administration settings',
+    'description' => 'Administration settings for the field quiz module.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('field_quiz_admin_settings_form'),
+    'access arguments' => array('administer field quiz'),
+    'file' => 'field_quiz.admin.inc'
+  );
+  return $items;
+}
+
+
+/**
+ * Processes the link type element before displaying the field.
+ *
+ * Build the form element. When creating a form using FAPI #process,
+ * note that $element['#value'] is already set.
+ *
+ * The $fields array is in $complete_form['#field_info'][$element['#field_name']].
+ */
+function field_quiz_field_process($element, $form_state, $complete_form) {
+
+  $instance = field_widget_instance($element, $form_state);
+  $settings = $instance['settings'];
+  $element['answer'] = array(
+    '#type' => 'textfield',
+    '#maxlength' => 1024,
+    '#title' => t('Quiz answer'),
+    '#description' => t('Enter your possible answer'),
+    '#required' => ($element['#delta'] == 0 && $settings['answer'] !== 'optional') ? $element['#required'] : FALSE,
+    '#default_value' => isset($element['#value']['answer']) ? $element['#value']['answer'] : NULL,
+  );
+
+  $element['correct'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('correct answer?'),
+    '#description' => t('Set this checkbox active, if this answer is correct'),
+    '#required' => ($element['#delta'] == 0 && $settings['correct'] !== 'optional') ? $element['#required'] : FALSE,
+    '#default_value' => isset($element['#value']['correct']) ? $element['#value']['correct'] : NULL,
+  );
+
+  return $element;
+}
+
+
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function field_quiz_field_widget_info() {
+  return array(
+    'field_quiz_widget_quiz' => array(
+      'label' => t('Field quiz'),
+      'field types' => array('field_quiz'),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_field_widget_form().
+ */
+function field_quiz_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+
+  $value = isset($items[$delta]['answer']) ? $items[$delta]['answer'] : '';
+  $correct = isset($items[$delta]['correct']) ? $items[$delta]['correct'] : '';
+
+  $widget_answer = $element;
+  $widget_correct = $element;
+  $widget_answer['#delta'] = $delta;
+  $widget_correct['#delta'] = $delta;
+
+  switch ($instance['widget']['type']) {
+
+    case 'field_quiz_widget_quiz':
+
+      $widget_answer += array(
+        '#type' => 'textfield',
+        '#default_value' => $value,
+        // Allow a slightly larger size that the field length to allow for some
+        // configurations where all characters won't fit in input field.
+        '#suffix' => '<div class="field-field-quiz">' . t('Enter your answer option') . '</div>',
+        '#attributes' => array('class' => array('edit-field-field-quiz')),
+      );
+
+      $widget_correct += array(
+        '#type' => 'checkbox',
+        '#title' => 'Is this a correct answer option?',
+        '#default_value' => $correct,
+        // Allow a slightly larger size that the field length to allow for some
+        // configurations where all characters won't fit in input field.
+        '#suffix' => '<span class="field-field_quiz">' . t('Is this a correct answer option?') . '</span>',
+        '#attributes' => array('class' => array('edit-field-field-quiz')),
+      );
+
+  }
+
+  $element['answer'] = $widget_answer;
+  $element['correct'] = $widget_correct;
+  return $element;
+}
+
+
+/**
+ * Validate the individual fields.
+ *
+ * @param $element
+ * @param $form_state
+ */
+function field_quiz_widget_quiz_validate($element, &$form_state) {
+
+  $delta = $element['#delta'];
+  $field = $form_state['field'][$element['#field_name']][$element['#language']]['field'];
+  $field_name = $field['field_name'];
+
+  if (isset($form_state['values'][$field_name][$element['#language']][$delta]['answer'])) {
+
+    // add validation
+
+  }
+}
+
+/**
+ * Implements hook_field_widget_error().
+ *
+ * hook_field_widget_error() lets us figure out what to do with errors
+ * we might have generated in hook_field_validate(). Generally, we'll just
+ * call form_error().
+ *
+ * @see field_example_field_validate()
+ * @see form_error()
+ */
+function field_quiz_field_widget_error($element, $error, $form, &$form_state) {
+  switch ($error['error']) {
+    case 'field_quiz_invalid':
+      form_error($element, $error['message']);
+      break;
+  }
+}
+
+
+/**
+ * Sort an array by random (shuffle) but preserve the keys
+ * @param $array
+ * @return array
+ */
+function _field_quiz_shuffle_assoc( &$array ) {
+  $keys = array_keys($array);
+  shuffle($keys);
+  foreach($keys as $key) {
+    $new[$key] = $array[$key];
+  }
+  $array = $new;
+  return true;
+}
+
+
+/**
+ * Generate the answers form for the quiz on the entity page
+ * @param array $form
+ * @param array $form_state
+ * @param object $entity
+ * @param array $items
+ * @param $instance
+ * @return array $form
+ */
+function field_quiz_answer_form($form, $form_state, $entity, $items, $instance) {
+
+  $form = array();
+
+  // Provide the entity.
+  $form['entity'] = array(
+    '#type' => 'value',
+    '#value' => $entity,
+  );
+
+  // Provide the field name.
+  $form['field_name'] = array(
+    '#type' => 'value',
+    '#value' => $instance['field_name'],
+  );
+
+  // Provide the entity type.
+  $form['entity_type'] = array(
+    '#type' => 'value',
+    '#value' => $instance['entity_type'],
+  );
+
+  // Provide the entity id.
+  $entity_ids_array = entity_extract_ids($instance['entity_type'], $entity);
+  $entity_id = array_shift($entity_ids_array);
+  $form['entity_id'] = array(
+    '#type' => 'value',
+    '#value' => $entity_id,
+  );
+
+
+  if (!empty($items)) {
+
+    $options = array();
+    $number_correct_answers = 0;
+    $use_radios_if_just_one_possible_answer = variable_get('field_quiz_use_radios', FALSE);
+
+    // Fieldset wrapper to concentrate the answers in the $form_state['values'] array.
+    $form['answers'] = array(
+      '#type' => 'fieldset',
+      '#title' => 'Answers',
+      '#tree' => TRUE,
+      '#collapsible' => FALSE,
+    );
+
+    if (!empty(variable_get('field_quiz_shuffle_answers', TRUE))) {
+      // Sort the answers each time by random.
+      _field_quiz_shuffle_assoc($items);
+    }
+
+    foreach ($items as $delta => $item) {
+      // We have to add 1 to the delta
+      // because if delta is 0, the submitted value will be 0.
+      $options[$delta + 1] = $item['answer'];
+      if ($item['correct']) {
+        $number_correct_answers++;
+      }
+    }
+
+    $type = 'checkboxes';
+    if (!empty($use_radios_if_just_one_possible_answer) && $number_correct_answers == 1) {
+      $type = 'radios';
+    }
+
+    // Provide the type.
+    $form['answers_type'] = array(
+      '#type' => 'hidden',
+      '#value' => $type,
+    );
+
+    // Provide each answer together with the checkbox.
+    $form['answers']['items'] = array(
+      '#type' => $type,
+      //'#title' => t('Answers'),
+      '#options' => $options,
+    );
+
+
+    // The message replacement area.
+    $form['answers']['replace_answer_area'] = array(
+      '#type' => 'markup',
+      '#markup' => '',
+      '#prefix' => '<div id="replace-answer-result-area">',
+      '#suffix' => '</div>',
+    );
+
+  }
+
+  // Submit button.
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+
+
+  // Use ajax ?
+  $use_ajax = variable_get('field_quiz_use_ajax', TRUE);
+  if (!empty($use_ajax)) {
+    // Ajax submit.
+    $form['submit']['#submit'] = array('field_quiz_ajax_answer_form_submit');
+    $form['submit']['#ajax'] = array(
+      'callback' => 'field_quiz_ajax_validate_callback',
+      'wrapper' => 'replace-answer-result-area',
+    );
+  }
+  else {
+    // Submit function if no ajax.
+    $form['#submit'][] = 'field_quiz_answer_form_submit';
+  }
+
+  return $form;
+}
+
+
+/**
+ * Ajax callback function to get and display the message.
+ *
+ * @param $form
+ * @param $form_state
+ * @return array
+ */
+function field_quiz_ajax_validate_callback($form, $form_state) {
+
+  if (!empty($form_state['values'])) {
+    $error = field_quiz_validate_answer_selection($form_state);
+
+    $entity_type = $form_state['values']['entity_type'];
+    $entity_id = $form_state['values']['entity_id'];
+
+    // If user answered wrong.
+    if ($error) {
+      $content = field_quiz_page_wrong_answer($entity_type, $entity_id, TRUE);
+    }
+    // Success.
+    else {
+      $content = field_quiz_page_correct_answer($entity_type,$entity_id, TRUE);
+    }
+  }
+
+  $form['replace_answer_area'] = array(
+    '#type' => 'markup',
+    '#markup' => $content,
+    '#prefix' => '<div id="replace-answer-result-area">',
+    '#suffix' => '</div>',
+  );
+
+  return $form['replace_answer_area'];
+}
+
+
+/**
+ * Submission of the submit button - rebuild the form for ajax callback.
+ *
+ * @param $form
+ * @param $form_state
+ */
+function field_quiz_ajax_answer_form_submit($form, $form_state) {
+  $form_state['rebuild'] = TRUE;
+}
+
+
+/**
+ * Submission of the answers form - no ajax selected
+ *
+ * @param array $form
+ * @param array $form_state
+ */
+function field_quiz_answer_form_submit($form, &$form_state) {
+  if (!empty($form_state['values'])) {
+    $error = field_quiz_validate_answer_selection($form_state);
+    // If user answered wrong.
+    if ($error) {
+      // Redirect the user to the sorry page.
+      $form_state['redirect'] = 'quiz/sorry/' . $form_state['values']['entity_type'] . '/' . $form_state['values']['entity_id'];
+    }
+    else {
+      // Redirect the user to the success page.
+      $form_state['redirect'] = 'quiz/success/' . $form_state['values']['entity_type'] . '/' . $form_state['values']['entity_id'];
+    }
+  }
+}
+
+
+/**
+ * Validate the answers selection.
+ *
+ * @param $form_state
+ * @return bool
+ */
+function field_quiz_validate_answer_selection($form_state) {
+  $error = FALSE;
+
+  $answers_type = $form_state['values']['answers_type'];
+
+  switch ($answers_type) {
+
+    // If radios.
+    case 'radios':
+      $error = field_quiz_validate_answer_selection_for_radios($form_state);
+      break;
+
+    // If checkboxes.
+    case 'checkboxes':
+      $error = field_quiz_validate_answer_selection_for_checkboxes($form_state);
+      break;
+
+  }
+  return $error;
+}
+
+
+/**
+ * Validate the answers submitted as radios.
+ *
+ * @param $items
+ * @param $form_state
+ * @return bool
+ */
+function field_quiz_validate_answer_selection_for_radios($form_state) {
+  // there is just one submitted delta value.
+  $submitted_delta = $form_state['values']['answers']['items'] - 1;
+  $error = FALSE;
+
+  // Get the correct answers.
+  $entity_type = $form_state['values']['entity_type'];
+  $items = field_get_items($entity_type, $form_state['values']['entity'], $form_state['values']['field_name']);
+
+  if (!empty($items)) {
+    foreach ($items as $delta => $item) {
+      // If this answer should be correct.
+      if (!empty($item['correct'])) {
+        if ($submitted_delta == $delta) {
+          // correct answer selected.
+        }
+        else {
+          $error = TRUE;
+        }
+      }
+      else {
+        // If this answer should be wrong.
+        if ($submitted_delta == $delta) {
+          // Wrong answer is selected.
+          $error = TRUE;
+        }
+      }
+    }
+  }
+  return $error;
+}
+
+/**
+ * Validate the answers submitted as checkboxes.
+ *
+ * @param $items
+ * @param $form_state
+ * @return bool
+ */
+function field_quiz_validate_answer_selection_for_checkboxes($form_state) {
+  $error = FALSE;
+
+  // Get the correct answers.
+  $entity_type = $form_state['values']['entity_type'];
+  $items = field_get_items($entity_type, $form_state['values']['entity'], $form_state['values']['field_name']);
+  if (!empty($items)) {
+    foreach ($items as $delta => $item) {
+      // If the answer should be correct.
+      if (!empty($item['correct'])) {
+        // Is it marked as correct?
+        if (!empty($form_state['values']['answers']['items'][$delta + 1])) {
+          // Correct.
+        }
+        else {
+          // Wrong.
+          $error = TRUE;
+        }
+      }
+      // If the answer should be wrong.
+      else {
+        // But is marked as correct.
+        if (!empty($form_state['values']['answers']['items'][$delta + 1])) {
+          // Wrong.
+          $error = TRUE;
+        }
+        else {
+          // Correct.
+        }
+      }
+    }
+  }
+  return $error;
+}
+
+/**
+ * Sorry, wrong answer page
+ * - can be access by everyone
+ *
+ * @param int $entity_id
+ * @param bool $ajax
+ * @return string $content
+ */
+function field_quiz_page_wrong_answer($entity_type, $entity_id, $ajax = FALSE) {
+  $content = '';
+  // Theme the wrong answer page.
+  $content .= theme('field_quiz_page_wrong_answer', array(
+    'entity_type' => $entity_type,
+    'entity_id' => $entity_id,
+    'ajax' => $ajax,
+    'text' => variable_get('field_quiz_text_answer_wrong', t('Sorry, wrong answer. Please retry.')),
+    'back_link_text' => variable_get('field_quiz_text_answer_wrong_back_link_text', t('Please retry.')),
+  ));
+  drupal_add_css(drupal_get_path('module', 'field_quiz') . '/css/field_quiz.css');
+  return $content;
+}
+
+
+/**
+ * Correct answer page.
+ *
+ * @param int $entity_id
+ * @param bool $ajax
+ * @return string $content
+ */
+function field_quiz_page_correct_answer($entity_type, $entity_id, $ajax = FALSE) {
+  $content = '';
+  // Theme the correct answer page.
+  $content .= theme('field_quiz_page_correct_answer', array(
+    'entity_type' => $entity_type,
+    'entity_id' => $entity_id,
+    'ajax' => $ajax,
+    'text' => variable_get('field_quiz_text_answer_correct', t('Congratulations. This was the correct answer.')),
+    'back_link_text' => variable_get('field_quiz_text_answer_correct_back_link_text', t('Back')),
+  ));
+  drupal_add_css(drupal_get_path('module', 'field_quiz') . '/css/field_quiz.css');
+  return $content;
+}

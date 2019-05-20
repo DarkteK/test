@@ -1,0 +1,39 @@
+/** 
+ * @file
+ * CSS styling for CT Quiz
+ */
+html {
+  font-size: 17px;
+}
+
+div#main_quiz h2 {
+  font-size: 1.6em;
+}
+
+div#main_quiz .btn {
+  margin: 7px auto 7px auto;
+  display:block;
+}
+
+div.quiz {
+  cursor: pointer;
+  border: 1px solid black;
+  margin: 7px auto 7px auto;
+  padding: 7px 7px 7px 7px;
+}
+
+div.quiz:hover {
+  background-color: black;
+  opacity: 0.8;
+  color: white;
+}
+
+div.quiz_question{
+  font-size: 1.3em;
+  font-weight: 700;
+}
+
+div.quiz_message{
+  font-size: 1.6em;
+  font-weight: 700;
+}
