@@ -52,7 +52,7 @@
                 this.quiz_list = false;
                 this.prepareData();
               }else{
-                  this.quiz = null;
+                this.quiz = null;
               }
             })
             .catch(error => {
@@ -81,14 +81,14 @@
 
             quizData.field_quiz_fc_answers.map(quizAnswers => {
               
-               answers[this.answers_counter]= 
-                '<div class="row">' +
-                  '<div class="col-lg text-center">' +
-                    '<label for="' + quizAnswers.answer + '"> ' +
-                      "<input type='radio' name='answers_" + this.questions_counter + "' value='" + quizAnswers.correct + "'>" + quizAnswers.answer +
-                      '</label>' +
-                  '</div>' +
-                '</div>';
+             answers[this.answers_counter]= 
+              '<div class="row">' +
+                '<div class="col-lg text-center">' +
+                  '<label for="' + quizAnswers.answer + '"> ' +
+                    "<input type='radio' name='answers_" + this.questions_counter + "' value='" + quizAnswers.correct + "'>" + quizAnswers.answer +
+                    '</label>' +
+                '</div>' +
+              '</div>';
               
               this.answers_counter++;
             
