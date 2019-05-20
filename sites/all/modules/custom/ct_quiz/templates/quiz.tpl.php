@@ -61,7 +61,7 @@
         },
         prepareData() {
           this.questions_counter = 0;
-
+          this.questions = new Array();
           this.quiz.qa.map(quizData => {
             let questionsAnswers = new Object();
             let answers = new Array();
