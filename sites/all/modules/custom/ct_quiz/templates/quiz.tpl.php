@@ -61,11 +61,11 @@
         },
         prepareData() {
           this.questions_counter = 0;
-          let questionsAnswers = new Object();
-          let answers = new Array();
 
           this.quiz.qa.map(quizData => {
-
+            let questionsAnswers = new Object();
+            let answers = new Array();
+            
             questionsAnswers.title = 
               '<div class="row">' +
               '<div class="quiz_question col-lg text-center">' +
@@ -94,6 +94,7 @@
             
             });
             questionsAnswers.answers = answers;
+            this.answers_counter = 0;
 
             this.questions[this.questions_counter] = questionsAnswers;
             this.questions_counter++;
@@ -108,7 +109,6 @@
           if (flag) {
             this.questions_counter = 0;
           }
-
           if (this.questions[this.questions_counter]) {
 
             this.quiz_output = this.questions[this.questions_counter].title + this.questions[this.questions_counter].answers.join(' ') + this.questions[this.questions_counter].message;
